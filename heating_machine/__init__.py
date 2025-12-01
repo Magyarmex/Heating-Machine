@@ -1,17 +1,17 @@
-"""
-Heating Machine task orchestration utilities.
-"""
+"""Heating machine control package with session and audit support."""
 
-from .queue import (
-    HeartbeatMissed,
-    SensorLimitExceeded,
-    WorkQueue,
-    WorkQueueMetrics,
+from .core import (
+    AuditLogger,
+    HeatingMachine,
+    Role,
+    SessionManager,
+    User,
 )
 
 __all__ = [
-    "HeartbeatMissed",
-    "SensorLimitExceeded",
-    "WorkQueue",
-    "WorkQueueMetrics",
+    "AuditLogger",
+    "HeatingMachine",
+    "Role",
+    "SessionManager",
+    "User",
 ]
