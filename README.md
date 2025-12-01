@@ -1,8 +1,23 @@
-**WARNING**
-This is a stupid repository, use at your own risk.
+# Heating Machine
 
-*Heating Machine*
-The following is a program built with the only purpose of turning your computer device into a primitive heating mechanism, by placing a high load on your computer, getting it to work hard, producing lots of heat to warm up your house.
-This is NOT a virus and can be controlled, but run at your own risk.
+This tool simulates a heat-inducing workload with guardrails that make it safe to experiment in different environments.
 
-I don´t even know why you would even use this tbh.
+## Features
+- **Environment-specific presets**: Configured in `configs/environments.json` with minimal load defaults for development, staging, and production.
+- **Canary releases with health gates**: Heat levels rise progressively only when health thresholds stay under control.
+- **One-click rollback**: Roll back to the last stable heat level immediately whenever validation or health checks fail.
+- **Validation before higher heat**: Pre-flight checks confirm monitoring, capacity, and release hygiene before increasing load.
+- **Debug metrics**: Every decision is logged for future debugging and auditing.
+
+## Quick start
+1. Install dependencies (PyYAML-free for offline-friendly usage):
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Run a simulated rollout:
+   ```bash
+   python -m heating_machine.cli development --monitoring --available-capacity 40 \
+     --simulate-error-rate 0.01 0.02 0.02 --simulate-cpu-spike 0.1 0.2 0.25
+   ```
+
+The CLI prints validation outcomes, health gate decisions, and whether a rollback was needed.
