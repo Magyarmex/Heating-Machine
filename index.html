@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heating Machine</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Heating Machine</h1>
+    <p class="tagline">Control and observe intentional computational heat generation.</p>
+  </header>
+
+  <section class="warning" role="alert">
+    <h2>Safety First</h2>
+    <ul>
+      <li>This tool intentionally increases device power consumption and heat output.</li>
+      <li>Expect battery drain, fan noise, and potential throttling. Stop immediately if anything seems wrong.</li>
+      <li>Always keep ventilation unobstructed and avoid running near sensitive surfaces.</li>
+    </ul>
+  </section>
+
+  <main>
+    <section class="controls">
+      <h2>Controls</h2>
+      <div class="control-grid">
+        <label>CPU Workers: <span id="cpu-count-label"></span>
+          <input type="range" id="cpu-count" min="1" max="16" step="1" />
+        </label>
+        <label>CPU Intensity: <span id="cpu-intensity-label"></span>
+          <input type="range" id="cpu-intensity" min="5" max="100" step="5" />
+        </label>
+        <label>Memory Load (MB): <span id="memory-label"></span>
+          <input type="range" id="memory" min="0" max="2048" step="64" />
+        </label>
+        <label>GPU Load (% of frame work): <span id="gpu-label"></span>
+          <input type="range" id="gpu" min="0" max="100" step="10" />
+        </label>
+        <label>Auto-Stop (minutes): <span id="duration-label"></span>
+          <input type="range" id="duration" min="1" max="30" step="1" />
+        </label>
+      </div>
+      <div class="buttons">
+        <button id="start">Start</button>
+        <button id="pause" disabled>Pause</button>
+        <button id="stop" disabled>Stop</button>
+      </div>
+    </section>
+
+    <section class="presets">
+      <h2>Presets</h2>
+      <div class="preset-buttons">
+        <button data-preset="light">Light Warmth</button>
+        <button data-preset="medium">Medium Stress</button>
+        <button data-preset="max">Maximum Stress Test</button>
+      </div>
+      <p class="preset-info" id="preset-info">Choose a preset or customize sliders.</p>
+    </section>
+
+    <section class="telemetry">
+      <h2>Telemetry</h2>
+      <div class="stats">
+        <div><strong>Status:</strong> <span id="status">Idle</span></div>
+        <div><strong>CPU Threads:</strong> <span id="threads">0</span></div>
+        <div><strong>Iterations/s:</strong> <span id="ips">0</span></div>
+        <div><strong>Memory Allocated:</strong> <span id="memory-usage">0 MB</span></div>
+        <div><strong>GPU Activity:</strong> <span id="gpu-activity">Idle</span></div>
+        <div><strong>Elapsed:</strong> <span id="elapsed">0s</span></div>
+        <div><strong>Auto-Stop In:</strong> <span id="countdown">-</span></div>
+        <div><strong>Warnings:</strong> <span id="warnings">None</span></div>
+      </div>
+      <canvas id="chart" width="900" height="260" aria-label="Live load chart"></canvas>
+    </section>
+
+    <section class="notes">
+      <h2>How it Works</h2>
+      <p>CPU load uses Web Workers to crunch math while yielding between cycles based on the configured intensity. Memory load allocates and scrubs typed arrays to stress allocation and bandwidth. GPU load issues WebGL draw calls to keep the graphics pipeline active. Safety guards stop workloads on timer expiration, UI errors, or detected stalls.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Use responsibly. Reload the page if anything seems off.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

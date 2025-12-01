@@ -1,0 +1,9 @@
+{
+  "name": "heating-machine",
+  "version": "1.0.0",
+  "description": "Client-side controllable workload generator for intentional heat.",
+  "scripts": {
+    "test": "echo 'No automated tests yet - manual verification only.'"
+  },
+  "license": "MIT"
+}
