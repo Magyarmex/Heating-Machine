@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heating Machine Control Board</title>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --panel: rgba(255, 255, 255, 0.04);
+      --accent: #7cf0ff;
+      --accent-2: #f99cff;
+      --text: #e4ecf7;
+      --muted: #9fb2c8;
+      --success: #7df7c4;
+      --warn: #ffc861;
+      --error: #ff7b72;
+      --shadow: 0 15px 45px rgba(0, 0, 0, 0.35);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(124, 240, 255, 0.15), transparent 30%),
+        radial-gradient(circle at 80% 0%, rgba(249, 156, 255, 0.15), transparent 30%),
+        linear-gradient(135deg, #0a0c10 0%, #080a0f 50%, #0d0f18 100%);
+      color: var(--text);
+      padding: 24px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      letter-spacing: 0.02em;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h1::before {
+      content: "\2736";
+      color: var(--accent-2);
+      filter: drop-shadow(0 0 8px rgba(249, 156, 255, 0.8));
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 16px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .metric-card {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .status-ready { color: var(--success); background: rgba(125, 247, 196, 0.08); }
+    .status-degraded { color: var(--warn); background: rgba(255, 200, 97, 0.08); }
+
+    .log-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+    .log-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .log-meta { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; }
+    .log-message { margin-top: 6px; font-weight: 600; }
+
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 4px 4px 4px 0;
+      font-size: 12px;
+    }
+
+    .instructions { display: grid; gap: 10px; }
+    .instruction {
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(124, 240, 255, 0.04);
+      border: 1px solid rgba(124, 240, 255, 0.15);
+      color: var(--text);
+    }
+
+    .accent-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(124, 240, 255, 0.7), transparent);
+      margin: 12px 0;
+    }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .sparkline {
+      height: 48px;
+      width: 100%;
+      background: linear-gradient(180deg, rgba(124, 240, 255, 0.2), rgba(124, 240, 255, 0));
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .sparkline::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(249, 156, 255, 0.2), rgba(124, 240, 255, 0.3));
+      animation: pulse 6s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: translateX(-20%); opacity: 0.8; }
+      50% { transform: translateX(10%); opacity: 1; }
+      100% { transform: translateX(0%); opacity: 0.85; }
+    }
+
+    .flag { color: var(--warn); font-weight: 600; }
+    .flag.error { color: var(--error); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Heating Machine Control Board</h1>
+    <div class="subtitle">Live performance, safety signals, and quick-start guidance in a cinematic neon style.</div>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Status</h2>
+      <div id="status-chip" class="status-chip">Loading...</div>
+      <div class="accent-divider"></div>
+      <div class="metrics" id="metric-cards"></div>
+      <div class="accent-divider"></div>
+      <div class="pill-row" id="flag-row"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Activity Logs</h2>
+      <ul class="log-list" id="log-list"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Operator Guidance</h2>
+      <div class="instructions" id="instructions"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Traces</h2>
+      <div class="sparkline" aria-hidden="true"></div>
+      <div class="accent-divider"></div>
+      <div class="metrics" id="extra-metrics"></div>
+    </div>
+  </div>
+
+  <script>
+    async function fetchData() {
+      try {
+        const res = await fetch('/dashboard-data');
+        if (!res.ok) throw new Error('Failed to load dashboard data');
+        const data = await res.json();
+        renderStatus(data);
+        renderMetrics(data);
+        renderLogs(data.logs || []);
+        renderInstructions(data.instructions || []);
+        renderExtra(data);
+      } catch (err) {
+        const logList = document.getElementById('log-list');
+        logList.innerHTML = `<li class="log-item"><div class="log-message">${err.message}</div></li>`;
+      }
+    }
+
+    function renderStatus(data) {
+      const chip = document.getElementById('status-chip');
+      const ready = data.ready?.status || 'unknown';
+      chip.textContent = `System ${ready.toUpperCase()}`;
+      chip.className = `status-chip ${ready === 'ready' ? 'status-ready' : 'status-degraded'}`;
+      const flags = data.diagnostics?.flags || [];
+      const flagRow = document.getElementById('flag-row');
+      flagRow.innerHTML = '';
+      if (flags.length === 0) {
+        flagRow.innerHTML = '<span class="tag">All systems nominal</span>';
+        return;
+      }
+      flags.forEach(flag => {
+        const el = document.createElement('span');
+        el.className = `tag ${flag.severity === 'error' ? 'error' : ''}`;
+        el.textContent = `${flag.code}: ${flag.message}`;
+        flagRow.appendChild(el);
+      });
+    }
+
+    function renderMetrics(data) {
+      const container = document.getElementById('metric-cards');
+      const metrics = data.health?.metrics || {};
+      container.innerHTML = '';
+      const items = [
+        ['Target Load', metrics.target_load, 'fraction'],
+        ['Actual Load', metrics.actual_load, 'fraction'],
+        ['Queue Depth', metrics.queue_depth, 'count'],
+        ['Throttles', metrics.throttling_events, 'count'],
+        ['Uptime', (data.diagnostics?.uptime_seconds || 0), 'seconds'],
+      ];
+      items.forEach(([label, value, kind]) => {
+        const card = document.createElement('div');
+        card.className = 'metric-card';
+        const v = kind === 'fraction' ? `${Math.round((value || 0) * 100)}%` : (value ?? '—');
+        card.innerHTML = `<div class="metric-label">${label}</div><div class="metric-value">${v}</div>`;
+        container.appendChild(card);
+      });
+    }
+
+    function renderLogs(logs) {
+      const list = document.getElementById('log-list');
+      list.innerHTML = '';
+      if (logs.length === 0) {
+        list.innerHTML = '<li class="log-item">No recent logs</li>';
+        return;
+      }
+      logs.forEach(log => {
+        const item = document.createElement('li');
+        item.className = 'log-item';
+        item.innerHTML = `<div class="log-meta"><span>${log.time}</span><span>${log.level}</span></div><div class="log-message">${log.message}</div>`;
+        list.appendChild(item);
+      });
+    }
+
+    function renderInstructions(steps) {
+      const container = document.getElementById('instructions');
+      container.innerHTML = '';
+      steps.forEach((step) => {
+        const card = document.createElement('div');
+        card.className = 'instruction';
+        card.textContent = step;
+        container.appendChild(card);
+      });
+    }
+
+    function renderExtra(data) {
+      const container = document.getElementById('extra-metrics');
+      const diagnostics = data.diagnostics || {};
+      container.innerHTML = '';
+      const extra = [
+        ['Guardrail Trigger', data.health?.guardrail || 'None'],
+        ['Cooldown Advice', diagnostics.cooldown_advice || 'Stable'],
+        ['Debug Mode', diagnostics.debug_mode ? 'Enabled' : 'Normal'],
+      ];
+      extra.forEach(([label, value]) => {
+        const card = document.createElement('div');
+        card.className = 'metric-card';
+        card.innerHTML = `<div class="metric-label">${label}</div><div class="metric-value">${value}</div>`;
+        container.appendChild(card);
+      });
+    }
+
+    fetchData();
+    setInterval(fetchData, 4000);
+  </script>
+</body>
+</html>

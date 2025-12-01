@@ -58,6 +58,8 @@ class LoadEngine:
         self._smoothing_factor = smoothing_factor
         self.logger = logger or configure_logging()
         self._last_guardrail_trigger: Optional[str] = None
+        self._start_time: Optional[float] = None
+        self._debug_mode = False
 
     # Session lifecycle -------------------------------------------------
     def start(self) -> None:
@@ -66,6 +68,7 @@ class LoadEngine:
         self._stop_event.clear()
         self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
+        self._start_time = time.time()
         self.logger.info("engine_started", extra={"extra_data": {"event": "session_start"}})
 
     def stop(self) -> None:
@@ -114,6 +117,19 @@ class LoadEngine:
                 }
             },
         )
+        if requested:
+            self.logger.info(
+                "guardrail_snapshot",
+                extra={
+                    "extra_data": {
+                        "event": "guardrail_snapshot",
+                        "actual_load": self.metrics.actual_load,
+                        "target_load": self.metrics.target_load,
+                        "requested_load": requested,
+                        "queue_depth": self.metrics.queue_depth,
+                    }
+                },
+            )
 
     # Health & readiness -----------------------------------------------
     def health(self) -> Dict[str, object]:
@@ -123,6 +139,50 @@ class LoadEngine:
                 "metrics": self.metrics.snapshot(),
                 "guardrail": self._last_guardrail_trigger,
             }
+
+    def diagnostics(self) -> Dict[str, object]:
+        """Return derived debug metrics, flags, and hints for dashboards."""
+
+        with self._metrics_lock:
+            metrics = self.metrics.snapshot()
+        uptime_seconds = time.time() - self._start_time if self._start_time else 0.0
+        flags = []
+        if metrics["actual_load"] > 0.82:
+            flags.append(
+                {
+                    "code": "LOAD-HOT",
+                    "severity": "warn",
+                    "message": "Actual load above 82%; monitor closely.",
+                }
+            )
+        if metrics["queue_depth"] >= self._job_queue.maxsize * 0.75:
+            flags.append(
+                {
+                    "code": "QUEUE-PRESSURE",
+                    "severity": "warn",
+                    "message": "Queue nearing capacity; throttling likely.",
+                }
+            )
+        if metrics["last_error"]:
+            flags.append({"code": "ERROR", "severity": "error", "message": metrics["last_error"]})
+
+        cooldown_advice = "Stable"
+        if metrics["throttling_events"] > 0 or metrics["safety_trip_counts"].get("overload"):
+            cooldown_advice = "Reduce load and allow cooldown"
+
+        return {
+            "uptime_seconds": round(uptime_seconds, 2),
+            "flags": flags,
+            "cooldown_advice": cooldown_advice,
+            "debug_mode": self._debug_mode,
+        }
+
+    def set_debug_mode(self, enabled: bool) -> None:
+        self._debug_mode = enabled
+        self.logger.info(
+            "debug_mode_toggled",
+            extra={"extra_data": {"event": "debug_mode", "enabled": enabled}},
+        )
 
     def ready(self) -> Dict[str, object]:
         degraded = False
@@ -145,6 +205,8 @@ class LoadEngine:
             updated = (1 - self._smoothing_factor) * previous + self._smoothing_factor * measured
             self.metrics.actual_load = updated
             self.metrics.queue_depth = self._job_queue.qsize()
+            if updated > self.max_safe_load:
+                self._record_safety_trip("overload", requested=updated)
 
     def _increment_throttling(self) -> None:
         with self._metrics_lock:
@@ -183,6 +245,18 @@ class LoadEngine:
                 self.metrics.last_error = str(exc)
             self.logger.exception(
                 "control_loop_error", extra={"extra_data": {"event": "error", "error": str(exc)}}
+            )
+            self.logger.error(
+                "control_loop_error_flag",
+                extra={
+                    "extra_data": {
+                        "event": "error_flag",
+                        "category": "control_loop",
+                        "message": str(exc),
+                        "queue_depth": self.metrics.queue_depth,
+                        "throttling_events": self.metrics.throttling_events,
+                    }
+                },
             )
 
     def _maybe_schedule_work(self) -> None:
