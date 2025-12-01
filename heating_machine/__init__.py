@@ -1,0 +1,3 @@
+"""
+Heating Machine package.
+"""
