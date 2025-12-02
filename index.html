@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heating Machine</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Heating Machine</h1>
+    <p class="tagline">Controlled, observable performance load — keep the shutdown button close.</p>
+  </header>
+
+  <section class="warning" role="alert">
+    <div class="warning-title">⚠️ Safety First</div>
+    <ul>
+      <li>This tool intentionally increases device power consumption and heat output.</li>
+      <li>Expect battery drain, fan noise, and potential throttling. Stop immediately if anything seems wrong.</li>
+      <li>Always keep ventilation unobstructed and avoid running near sensitive surfaces.</li>
+    </ul>
+  </section>
+
+  <section class="status-bar">
+    <div><span class="pill">Status</span> <strong id="status">Idle</strong></div>
+    <div><span class="pill">Warnings</span> <span id="warnings">None</span></div>
+    <div><span class="pill">Flags</span> <span id="flags">None</span></div>
+    <div><span class="pill">Countdown</span> <span id="countdown">-</span></div>
+  </section>
+
+  <main class="layout">
+    <div class="stack">
+      <section class="controls">
+        <div class="section-head">
+          <h2>Controls</h2>
+          <div class="tiny">Tune threads, intensity, memory, GPU, and auto-stop window.</div>
+        </div>
+        <div class="control-grid">
+          <label>CPU Workers <span class="value" id="cpu-count-label"></span>
+            <input type="range" id="cpu-count" min="1" max="16" step="1" />
+          </label>
+          <label>CPU Intensity <span class="value" id="cpu-intensity-label"></span>
+            <input type="range" id="cpu-intensity" min="5" max="100" step="5" />
+          </label>
+          <label>Memory Load (MB) <span class="value" id="memory-label"></span>
+            <input type="range" id="memory" min="0" max="2048" step="64" />
+          </label>
+          <label>GPU Load (% frame work) <span class="value" id="gpu-label"></span>
+            <input type="range" id="gpu" min="0" max="100" step="10" />
+          </label>
+          <label>Auto-Stop (minutes) <span class="value" id="duration-label"></span>
+            <input type="range" id="duration" min="1" max="30" step="1" />
+          </label>
+        </div>
+        <div class="buttons">
+          <button id="start">Start</button>
+          <button id="pause" disabled>Pause</button>
+          <button id="stop" disabled>Stop</button>
+        </div>
+      </section>
+
+      <section class="presets">
+        <div class="section-head">
+          <h2>Presets</h2>
+          <div class="tiny">Quick-start recipes with curated limits.</div>
+        </div>
+        <div class="preset-buttons">
+          <button data-preset="light">Light Warmth</button>
+          <button data-preset="medium">Medium Stress</button>
+          <button data-preset="max">Maximum Stress Test</button>
+        </div>
+        <p class="preset-info" id="preset-info">Choose a preset or customize sliders.</p>
+      </section>
+
+      <section class="notes">
+        <div class="section-head">
+          <h2>How it Works</h2>
+          <div class="tiny">Browser-only load generators with visible safety rails.</div>
+        </div>
+        <p>CPU load uses Web Workers to crunch math while yielding between cycles based on the configured intensity. Memory load allocates and scrubs typed arrays to stress allocation and bandwidth. GPU load issues WebGL draw calls to keep the graphics pipeline active. Safety guards stop workloads on timer expiration, UI errors, or detected stalls.</p>
+      </section>
+    </div>
+
+    <div class="stack">
+      <section class="telemetry">
+        <div class="section-head">
+          <h2>Telemetry</h2>
+          <div class="tiny">Live counters to validate the load is really applied.</div>
+        </div>
+        <div class="stats">
+          <div><strong>CPU Threads</strong><span id="threads">0</span></div>
+          <div><strong>Iterations/s</strong><span id="ips">0</span></div>
+          <div><strong>Busy Estimate</strong><span id="cpu-busy">0%</span></div>
+          <div><strong>Memory Allocated</strong><span id="memory-usage">0 MB</span></div>
+          <div><strong>Memory Touch</strong><span id="memory-touch">0x/sec</span></div>
+          <div><strong>GPU Activity</strong><span id="gpu-activity">Idle</span></div>
+          <div><strong>GPU Frames</strong><span id="gpu-fps">0 fps</span></div>
+          <div><strong>Elapsed</strong><span id="elapsed">0s</span></div>
+        </div>
+        <canvas id="chart" width="900" height="220" aria-label="Live load chart"></canvas>
+      </section>
+
+      <section class="flags">
+        <div class="section-head">
+          <h2>Flags & Diagnostics</h2>
+          <div class="tiny">Automatic checks surface unexpected throttling or failures.</div>
+        </div>
+        <ul id="flag-list">
+          <li>No issues detected.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>Use responsibly. Reload the page if anything seems off.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
