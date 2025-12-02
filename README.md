@@ -7,10 +7,10 @@ Heating Machine is a client-side web application that intentionally drives confi
 - **CPU stressors** using Web Workers with adjustable thread count and intensity.
 - **Memory pressure** via configurable allocations and active scrubbing to keep data pages hot.
 - **GPU activity** through lightweight WebGL draw calls with tunable frame effort.
-- **Telemetry dashboard** showing aggregate iterations per second, active threads, memory allocated, GPU activity, elapsed time, and countdown to auto-stop.
-- **Live charting** of workload throughput for at-a-glance monitoring.
+- **Telemetry dashboard** showing aggregate iterations per second, estimated CPU busy %, active threads, memory allocated and scrub rate, GPU activity and frame rate, elapsed time, and countdown to auto-stop.
+- **Live charting** of workload throughput plus diagnostic flags if the browser blocks load.
 - **Presets** for quick starts: Light Warmth, Medium Stress, and Maximum Stress Test.
-- **Safety rails** including prominent warnings, start/pause/stop controls, auto-stop timers, heartbeat-based stall detection, and error messaging for unsupported APIs.
+- **Safety rails** including prominent warnings, start/pause/stop controls, auto-stop timers, heartbeat-based stall detection, error messaging for unsupported APIs, and flagging for "Not applying load correctly" scenarios.
 
 ## Getting Started
 

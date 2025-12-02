@@ -21,11 +21,15 @@ const outputs = {
   status: el('status'),
   threads: el('threads'),
   ips: el('ips'),
+  cpuBusy: el('cpu-busy'),
   memory: el('memory-usage'),
+  memoryTouch: el('memory-touch'),
   gpu: el('gpu-activity'),
+  gpuFps: el('gpu-fps'),
   elapsed: el('elapsed'),
   countdown: el('countdown'),
   warnings: el('warnings'),
+  flags: el('flags'),
 };
 
 const presetInfo = {
@@ -47,13 +51,20 @@ const state = {
   workerStats: [],
   memoryBuffers: [],
   memoryTouchTimer: null,
+  memoryTouchRate: 0,
   gpuContext: null,
   gpuLoop: null,
   gpuIntensity: 0,
+  gpuFps: 0,
+  lastGpuTimestamp: null,
+  gpuFrameCounter: 0,
   startTime: null,
   autoStopTimer: null,
   lastHeartbeat: performance.now(),
   chartData: [],
+  flags: new Set(),
+  targetWorkers: 0,
+  lowThroughputCount: 0,
 };
 
 function initLabels() {
@@ -72,6 +83,34 @@ function setWarning(message) {
   outputs.warnings.textContent = message || 'None';
 }
 
+function renderFlags() {
+  const flagList = el('flag-list');
+  flagList.innerHTML = '';
+  if (!state.flags.size) {
+    flagList.innerHTML = '<li>No issues detected.</li>';
+    outputs.flags.textContent = 'None';
+    return;
+  }
+  outputs.flags.textContent = `${state.flags.size} issue${state.flags.size === 1 ? '' : 's'}`;
+  [...state.flags].forEach((flag) => {
+    const li = document.createElement('li');
+    li.textContent = flag;
+    flagList.appendChild(li);
+  });
+}
+
+function addFlag(message) {
+  if (!state.flags.has(message)) {
+    state.flags.add(message);
+    renderFlags();
+  }
+}
+
+function clearFlags() {
+  state.flags.clear();
+  renderFlags();
+}
+
 function updateTelemetry() {
   const now = performance.now();
   const elapsedSeconds = state.startTime ? ((now - state.startTime) / 1000).toFixed(1) : '0';
@@ -81,10 +120,19 @@ function updateTelemetry() {
   const ips = state.workerStats.reduce((acc, s) => acc + (s.iterationsPerSecond || 0), 0);
   outputs.ips.textContent = ips.toFixed(0);
 
+  const avgBusy = state.workerStats.length
+    ? state.workerStats.reduce((acc, s) => acc + (s.busy || 0), 0) / state.workerStats.length
+    : 0;
+  const cores = navigator.hardwareConcurrency || Math.max(1, state.workers.length);
+  const effectiveBusy = Math.min(1, avgBusy * (state.workers.length / cores));
+  outputs.cpuBusy.textContent = `${(effectiveBusy * 100).toFixed(0)}%`;
+
   const memMb = state.memoryBuffers.reduce((acc, buf) => acc + buf.byteLength, 0);
   outputs.memory.textContent = `${formatMb(memMb)} MB`;
+  outputs.memoryTouch.textContent = `${state.memoryTouchRate.toFixed(0)}x/sec`;
 
   outputs.gpu.textContent = state.gpuIntensity > 0 ? `Active (${state.gpuIntensity}% effort)` : 'Idle';
+  outputs.gpuFps.textContent = `${state.gpuFps.toFixed(0)} fps`;
 }
 
 function attachSliderLabel(slider, label, suffix = '') {
@@ -155,8 +203,9 @@ function createWorker() {
       if (event.data.type === 'stats') {
         const { iterations, elapsed } = event.data;
         const iterationsPerSecond = (iterations / Math.max(1, elapsed)) * 1000;
+        const busy = Math.min(1, elapsed / 200);
         state.lastHeartbeat = performance.now();
-        state.workerStats.push({ iterationsPerSecond });
+        state.workerStats.push({ iterationsPerSecond, busy });
       }
     };
     worker.onerror = (err) => {
@@ -174,6 +223,7 @@ function createWorker() {
 function startWorkers(count, intensity) {
   cleanupWorkers();
   state.workerStats = [];
+  state.targetWorkers = count;
   for (let i = 0; i < count; i++) {
     const worker = createWorker();
     if (worker) {
@@ -193,6 +243,7 @@ function allocateMemory(megabytes) {
   state.memoryBuffers.forEach((buf) => buf.fill(0));
   state.memoryBuffers = [];
   clearInterval(state.memoryTouchTimer);
+  state.memoryTouchRate = 0;
 
   if (megabytes <= 0) {
     outputs.memory.textContent = '0 MB';
@@ -202,6 +253,8 @@ function allocateMemory(megabytes) {
   const bytes = megabytes * 1024 * 1024;
   const chunk = 16 * 1024 * 1024;
   let allocated = 0;
+  let touches = 0;
+  const intervalMs = 750;
 
   try {
     while (allocated < bytes) {
@@ -212,17 +265,21 @@ function allocateMemory(megabytes) {
     }
   } catch (error) {
     setWarning(`Memory allocation limited: ${error.message}`);
+    addFlag('Memory load reduced by browser/OS limits.');
   }
 
   state.memoryTouchTimer = setInterval(() => {
+    touches = 0;
     state.memoryBuffers.forEach((buf, index) => {
       const step = Math.max(1, Math.floor(buf.length / 64));
       for (let i = 0; i < buf.length; i += step) {
         buf[i] = (buf[i] + Math.random()) % 1;
+        touches++;
       }
       if (index % 4 === 0) buf.reverse();
     });
-  }, 750);
+    state.memoryTouchRate = touches / (intervalMs / 1000);
+  }, intervalMs);
 }
 
 function setupGPU(intensity) {
@@ -296,6 +353,9 @@ function stopGPU() {
   state.gpuLoop = null;
   if (state.gpuContext?.canvas) state.gpuContext.canvas.remove();
   state.gpuContext = null;
+  state.gpuFps = 0;
+  state.lastGpuTimestamp = null;
+  state.gpuFrameCounter = 0;
   outputs.gpu.textContent = 'Idle';
 }
 
@@ -304,6 +364,14 @@ function gpuTick() {
   const { gl, program } = state.gpuContext;
   gl.viewport(0, 0, 256, 256);
   gl.useProgram(program);
+
+  const now = performance.now();
+  if (state.lastGpuTimestamp) {
+    const delta = now - state.lastGpuTimestamp;
+    state.gpuFps = 1000 / Math.max(1, delta);
+  }
+  state.lastGpuTimestamp = now;
+  state.gpuFrameCounter++;
 
   const draws = Math.max(1, Math.round(state.gpuIntensity / 10));
   for (let i = 0; i < draws; i++) {
@@ -318,7 +386,10 @@ function startGPU(intensity) {
   stopGPU();
   if (intensity <= 0) return;
   const ctx = setupGPU(intensity);
-  if (!ctx) return;
+  if (!ctx) {
+    addFlag('GPU load disabled (WebGL unavailable).');
+    return;
+  }
   gpuTick();
 }
 
@@ -339,6 +410,7 @@ function startAutoStop(minutes) {
 function startWorkload() {
   if (!window.Worker) {
     setWarning('Web Workers not supported; CPU load unavailable.');
+    addFlag('Not applying load correctly (workers unsupported).');
     return;
   }
 
@@ -347,6 +419,8 @@ function startWorkload() {
   state.startTime = performance.now();
   state.workerStats = [];
   state.chartData = [];
+  state.lowThroughputCount = 0;
+  clearFlags();
   setWarning('None');
   setStatus('Running');
 
@@ -391,6 +465,7 @@ function stopWorkload() {
   stopGPU();
   clearInterval(state.memoryTouchTimer);
   clearInterval(state.autoStopTimer);
+  state.memoryTouchRate = 0;
   setStatus('Idle');
   outputs.countdown.textContent = '-';
   outputs.gpu.textContent = 'Idle';
@@ -408,6 +483,7 @@ function scheduleHealthCheck() {
     const delta = performance.now() - state.lastHeartbeat;
     if (delta > 4000) {
       setWarning('Heartbeat stalled. Load stopped for safety.');
+      addFlag('Not applying load correctly (workers stalled).');
       stopWorkload();
       clearInterval(watchdog);
     }
@@ -432,6 +508,25 @@ function updateChart() {
   chart.push(ips);
   state.workerStats = [];
   updateTelemetry();
+
+  if (state.running) {
+    if (state.workers.length < state.targetWorkers) {
+      addFlag('CPU workers below requested count — browser may cap worker creation.');
+    }
+    const busyPercent = parseInt(outputs.cpuBusy.textContent, 10) || 0;
+    if (busyPercent < 5 && !state.paused && Number(controls.cpuIntensity.value) > 20) {
+      state.lowThroughputCount += 1;
+      if (state.lowThroughputCount > 3) {
+        addFlag('Not applying load correctly (CPU throughput extremely low).');
+      }
+    } else {
+      state.lowThroughputCount = 0;
+    }
+
+    if (Number(controls.gpu.value) > 0 && !state.gpuContext) {
+      addFlag('GPU load disabled (missing WebGL support).');
+    }
+  }
 }
 
 function bindEvents() {
@@ -485,6 +580,7 @@ function init() {
   bindEvents();
   setStatus('Idle');
   setWarning('None');
+  renderFlags();
   setInterval(updateChart, 500);
 }
 
